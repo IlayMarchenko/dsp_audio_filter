@@ -1,0 +1,4 @@
+.DS_Store
+cmake-build-debug
+a.out
+audio.h.gch

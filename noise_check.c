@@ -5,24 +5,24 @@ static int percent(int x1, int x2) {
     return (int)(temp*100);
 }
 
-static void try_to_add_max(int16_t **arr, int16_t item) {
-    int index_of_min = 0;
-    for (int i = 1; i < NOISE_CHECK_STEP/100; ++i) {
-        if ((*arr)[index_of_min] > (*arr)[i])
-            index_of_min = i;
+static void try_to_add(int16_t **arr, int16_t item, uint8_t mode) {
+    int index = 0;
+    if (mode) {
+        for (int i = 1; i < NOISE_CHECK_STEP/100; ++i) {
+            if ((*arr)[index] > (*arr)[i])
+                index = i;
+        }
+        if ((*arr)[index] < item)
+            (*arr)[index] = item;
     }
-    if ((*arr)[index_of_min] < item)
-        (*arr)[index_of_min] = item;
-}
-
-static void try_to_add_min(int16_t **arr, int16_t item) {
-    int index_of_max = 0;
-    for (int i = 1; i < NOISE_CHECK_STEP/100; ++i) {
-        if ((*arr)[index_of_max] < (*arr)[i])
-            index_of_max = i;
+    else {
+        for (int i = 1; i < NOISE_CHECK_STEP/100; ++i) {
+            if ((*arr)[index] < (*arr)[i])
+                index = i;
+        }
+        if ((*arr)[index] > item)
+            (*arr)[index] = item;
     }
-    if ((*arr)[index_of_max] > item)
-        (*arr)[index_of_max] = item;
 }
 
 static int16_t *new_arr() {
@@ -34,7 +34,7 @@ static int16_t *new_arr() {
 static int get_amplitude(const int16_t *local_max, const int16_t *local_min) {
     int av_max = 0;
     int av_min = 0;
-    int length = NOISE_CHECK_STEP/100;
+    int length = NOISE_CHECK_STEP/100; // 1% of section
     for (int i = 0; i < length; ++i) {
         av_max += local_max[i];
         av_min += local_min[i];
@@ -44,10 +44,15 @@ static int get_amplitude(const int16_t *local_max, const int16_t *local_min) {
     return av_max + av_min;
 }
 
+/**
+ * @brief Function 'is_noise' takes array with possible noise and if possibility more then 95% - returns true
+ * @param 'raw_value' - constant array with possible noise
+ * @return true if possibility that array is noise more then 95%, false if less
+ */
 bool is_noise(const int16_t *possible_noise) {
+    int amplitude;
     int extremum = 0;
-    int amplitude = 0;
-    int16_t *local_max = new_arr(); // length is 1% of section
+    int16_t *local_max = new_arr();
     int16_t *local_min = new_arr();
     bool is_up = possible_noise[0] < possible_noise[1];
     for (int i = 0; i < NOISE_CHECK_STEP; ++i) {
@@ -55,9 +60,9 @@ bool is_noise(const int16_t *possible_noise) {
             continue;
         else {
             if (is_up)
-                try_to_add_max(&local_max, possible_noise[i]);
+                try_to_add(&local_max, possible_noise[i], MAX);
             else
-                try_to_add_min(&local_min, possible_noise[i]);
+                try_to_add(&local_min, possible_noise[i], MIN);
             is_up = !is_up;
             ++extremum;
         }
@@ -66,7 +71,5 @@ bool is_noise(const int16_t *possible_noise) {
     free(local_max);
     free(local_min);
 
-    int a = percent(extremum, EXTREMUM_THRESHOLD) + (100 - percent(amplitude, AMPLITUDE_THRESHOLD));
-
-    return a > 90;
+    return percent(extremum, EXTREMUM_THRESHOLD) + (100 - percent(amplitude, AMPLITUDE_THRESHOLD)) > 95;
 }
